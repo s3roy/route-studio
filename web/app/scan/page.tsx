@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { scanProject } from "@/lib/analyzer";
 import { getExampleProjectPath } from "@/lib/example-project";
+import { ScanIcon } from "@/components/icons";
 import { StudioNav } from "@/components/layout/studio-nav";
 
 export default function ScanPage() {
@@ -8,7 +9,7 @@ export default function ScanPage() {
 
   if (!result.ok) {
     return (
-      <div className="app-shell flex overflow-hidden bg-zinc-950 text-red-400">
+      <div className="app-shell theme-shell flex overflow-hidden">
         <StudioNav />
         <div className="flex flex-1 items-center justify-center p-8 text-red-400">
           <div>
@@ -25,15 +26,22 @@ export default function ScanPage() {
   const { project } = result;
 
   return (
-    <div className="app-shell flex overflow-hidden bg-zinc-950 text-zinc-100">
-      <StudioNav />
+    <div className="app-shell theme-shell flex overflow-hidden">
+      <StudioNav nextVersion={project.nextVersion} />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="shrink-0 border-b border-white/10 px-6 py-4">
-          <p className="text-lg font-semibold">Analyzer debug</p>
-          <p className="text-sm text-zinc-500">
-            Scanning <code className="text-zinc-400">examples/my-app</code>
-          </p>
+        <header className="theme-border shrink-0 border-b px-6 py-4">
+          <div className="flex items-center gap-3">
+            <span className="theme-nav-active flex h-9 w-9 items-center justify-center rounded-lg">
+              <ScanIcon size={18} />
+            </span>
+            <div>
+              <p className="text-lg font-semibold">Analyzer debug</p>
+              <p className="theme-muted text-sm">
+                Scanning <code className="theme-text-secondary">examples/my-app</code>
+              </p>
+            </div>
+          </div>
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto">

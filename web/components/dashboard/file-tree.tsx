@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FileTreeNode, RouteFileKind } from "@/lib/analyzer";
-
-const kindIcons: Partial<Record<RouteFileKind, string>> = {
-  layout: "◫",
-  page: "◧",
-  loading: "◌",
-  route: "{ }",
-};
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  FolderIcon,
+  RouteFileKindIcon,
+} from "@/components/icons";
 
 type FileTreeProps = {
   nodes: FileTreeNode[];
   selectedPath: string | null;
   onSelect: (path: string) => void;
 };
+
+function containsSelectedPath(node: FileTreeNode, selectedPath: string | null): boolean {
+  if (!selectedPath) return false;
+  if (node.path === selectedPath) return true;
+  if (selectedPath.startsWith(`${node.path}/`)) return true;
+  return node.children?.some((child) => containsSelectedPath(child, selectedPath)) ?? false;
+}
 
 export function FileTree({ nodes, selectedPath, onSelect }: FileTreeProps) {
   return (
@@ -43,32 +49,55 @@ function TreeNode({
   selectedPath: string | null;
   onSelect: (path: string) => void;
 }) {
-  const [open, setOpen] = useState(true);
   const isDir = node.type === "directory";
   const selected = selectedPath === node.path;
-  const icon = node.routeFileKind ? (kindIcons[node.routeFileKind] ?? "·") : isDir ? "▸" : "·";
+  const rowRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(() => isDir && containsSelectedPath(node, selectedPath));
+
+  useEffect(() => {
+    if (isDir && containsSelectedPath(node, selectedPath)) {
+      setOpen(true);
+    }
+  }, [isDir, node.path, selectedPath]);
+
+  useEffect(() => {
+    if (!selected || !rowRef.current) return;
+    rowRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected, selectedPath]);
 
   return (
     <li>
       <button
+        ref={rowRef}
         type="button"
         onClick={() => {
           if (isDir) setOpen((v) => !v);
           else onSelect(node.path);
         }}
-        className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition ${
-          selected
-            ? "bg-violet-500/20 text-violet-100"
-            : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+        className={`flex w-full items-center gap-1 rounded-md py-1 pr-2 text-left transition ${
+          selected ? "theme-selected font-medium" : "theme-muted theme-hover"
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        <span className="w-3 shrink-0 text-[10px] text-zinc-600">
-          {isDir ? (open ? "▾" : "▸") : icon}
+        <span className="flex w-3 shrink-0 items-center justify-center">
+          {isDir ? (
+            open ? (
+              <ChevronDownIcon size={11} className="theme-muted-subtle" />
+            ) : (
+              <ChevronRightIcon size={11} className="theme-muted-subtle" />
+            )
+          ) : null}
         </span>
-        <span className="truncate font-mono text-xs">{node.name}</span>
+        <span className="flex w-4 shrink-0 items-center justify-center">
+          {isDir ? (
+            <FolderIcon open={open} size={14} className="theme-muted" />
+          ) : (
+            <RouteFileKindIcon kind={node.routeFileKind as RouteFileKind | undefined} size={14} />
+          )}
+        </span>
+        <span className="min-w-0 truncate font-mono text-xs">{node.name}</span>
         {node.routeFileKind ? (
-          <span className="ml-auto shrink-0 text-[10px] uppercase text-zinc-600">
+          <span className="theme-muted-subtle ml-auto shrink-0 text-[10px] uppercase">
             {node.routeFileKind}
           </span>
         ) : null}

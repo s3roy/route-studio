@@ -58,14 +58,14 @@ export function RequestFlowDiagram({ project, route, layoutChain }: RequestFlowD
   }
 
   return (
-    <section className="rounded-lg border border-white/10 bg-[#121214] p-4">
+    <section className="theme-card theme-border rounded-lg border p-4">
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold text-zinc-200">Request flow</p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">One navigation through the App Router pipeline</p>
+          <p className="theme-text-secondary text-xs font-semibold">Request flow</p>
+          <p className="theme-muted mt-0.5 text-[11px]">One navigation through the App Router pipeline</p>
         </div>
         {pageFile ? (
-          <code className="hidden rounded bg-black/40 px-2 py-1 text-[11px] text-zinc-400 sm:inline">
+          <code className="theme-input theme-muted hidden rounded px-2 py-1 text-[11px] sm:inline">
             Open in editor
           </code>
         ) : null}
@@ -102,7 +102,7 @@ type FlowStep = {
 
 function FlowNode({ step }: { step: FlowStep }) {
   const styles: Record<FlowTone, string> = {
-    neutral: "border-zinc-600 bg-zinc-900/80",
+    neutral: "theme-border theme-card border",
     gateway: "border-amber-500/40 bg-amber-500/5",
     rsc: "border-violet-500/40 bg-violet-500/5",
     page: "border-teal-500/40 bg-teal-500/5",
@@ -111,8 +111,8 @@ function FlowNode({ step }: { step: FlowStep }) {
 
   return (
     <div className={`w-40 rounded-lg border px-3 py-2.5 ${styles[step.tone]}`}>
-      <p className="text-xs font-semibold text-zinc-200">{step.title}</p>
-      <p className="mt-1 line-clamp-2 font-mono text-[11px] leading-snug text-zinc-500">
+      <p className="theme-text-secondary text-xs font-semibold">{step.title}</p>
+      <p className="theme-muted mt-1 line-clamp-2 font-mono text-[11px] leading-snug">
         {step.subtitle}
       </p>
     </div>
@@ -123,7 +123,7 @@ function FlowArrow({ dashed }: { dashed?: boolean }) {
   return (
     <div className="flex w-8 items-center">
       <div
-        className={`h-px w-full ${dashed ? "border-t border-dashed border-violet-400/50" : "bg-zinc-600"}`}
+        className={`h-px w-full ${dashed ? "border-t border-dashed border-violet-400/50" : "theme-border bg-zinc-600"}`}
       />
       <span className="text-zinc-600">›</span>
     </div>

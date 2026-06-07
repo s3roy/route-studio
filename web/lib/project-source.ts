@@ -1,30 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  loadStudioSession,
+  saveStudioSession,
+  type ProjectSource,
+} from "./studio-session";
 
-export type ProjectSource =
-  | { type: "demo" }
-  | { type: "github"; url: string };
-
-const STORAGE_KEY = "route-studio:source";
+export type { ProjectSource } from "./studio-session";
 
 export function loadProjectSource(): ProjectSource {
-  if (typeof window === "undefined") return { type: "demo" };
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return { type: "demo" };
-    return JSON.parse(raw) as ProjectSource;
-  } catch {
-    return { type: "demo" };
-  }
+  return loadStudioSession().source;
 }
 
 export function saveProjectSource(source: ProjectSource): void {
-  if (source.type === "demo") {
-    sessionStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(source));
+  const current = loadStudioSession();
+  saveStudioSession({ ...current, source });
 }
 
 export function useProjectSource(): ProjectSource {
@@ -37,6 +28,4 @@ export function useProjectSource(): ProjectSource {
   return source;
 }
 
-export function githubQueryParam(source: ProjectSource): string | null {
-  return source.type === "github" ? source.url : null;
-}
+export { githubQueryParam, routeLinkQueryFromSource, shareQueryParam } from "./studio-session";

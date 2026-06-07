@@ -1,15 +1,28 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { RouteProject, RouteSegment } from "@/lib/analyzer";
+import {
+  BookIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ComponentIcon,
+  DatabaseIcon,
+  ExternalLinkIcon,
+  LayoutIcon,
+  LoadingIcon,
+  PageIcon,
+  XCircleIcon,
+} from "@/components/icons";
 import { routeDetailHref } from "@/lib/route-detail/urls";
 
 type RouteInsightsProps = {
   project: RouteProject;
   selectedPath: string | null;
-  githubUrl?: string | null;
+  linkQuery?: { github?: string | null; share?: string | null };
 };
 
 /** Mockup 01 — quick insight cards (header row + status circle body). */
-export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsightsProps) {
+export function RouteInsights({ project, selectedPath, linkQuery }: RouteInsightsProps) {
   const route = findRouteForPath(project, selectedPath);
   const file = route?.files.find((f) => f.path === selectedPath);
   const loadingOnly =
@@ -22,6 +35,7 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
         body: "Runs in the browser with client-side interactivity.",
         badge: "◧",
         tone: "violet" as const,
+        badgeIcon: <PageIcon size={14} />,
       }
     : route?.isRSC
       ? {
@@ -29,12 +43,14 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
           body: "This route is rendered on the server using React Server Components.",
           badge: "RSC",
           tone: "emerald" as const,
+          badgeIcon: <ComponentIcon size={14} />,
         }
       : {
           title: "Server",
           body: "Rendered on the server for this segment.",
           badge: "S",
           tone: "zinc" as const,
+          badgeIcon: <ComponentIcon size={14} />,
         };
 
   const cache = route ? describeCache(route) : null;
@@ -43,8 +59,8 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
 
   return (
     <div className="flex h-full min-h-0 flex-col text-[13px] leading-snug">
-      <div className="shrink-0 border-b border-white/10 px-3.5 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+      <div className="theme-border shrink-0 border-b px-3.5 py-2.5">
+        <p className="theme-muted text-[11px] font-semibold uppercase tracking-wider">
           Route insights
         </p>
       </div>
@@ -55,19 +71,19 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
         ) : loadingOnly ? (
           <>
             <InsightCard
-              headerIcon="◌"
+              headerIcon={<LoadingIcon size={13} />}
               label="Rendering"
               title="Loading UI"
               body="Shown while the page segment is loading."
-              badge="◌"
+              badgeIcon={<LoadingIcon size={14} />}
               tone="zinc"
             />
             <InsightCard
-              headerIcon="◧"
+              headerIcon={<PageIcon size={13} />}
               label="File"
               title={shortPath(selectedPath)}
               body="Suspense fallback for this route segment."
-              badge="◧"
+              badgeIcon={<PageIcon size={14} />}
               tone="zinc"
               mono
             />
@@ -75,11 +91,12 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
         ) : !route ? (
           selectedPath.endsWith("layout.tsx") ? (
             <InsightCard
-              headerIcon="◫"
+              headerIcon={<LayoutIcon size={13} />}
               label="Rendering"
               title="React Server Component"
               body="Shared layout shell for nested routes."
               badge="RSC"
+              badgeIcon={<ComponentIcon size={14} />}
               tone="emerald"
             />
           ) : (
@@ -88,23 +105,24 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
         ) : (
           <>
             <InsightCard
-              headerIcon="◫"
+              headerIcon={<ComponentIcon size={13} />}
               label="Rendering"
               title={rendering.title}
               body={rendering.body}
               badge={rendering.badge}
+              badgeIcon={rendering.badgeIcon}
               tone={rendering.tone}
             />
             <InsightCard
-              headerIcon="⏱"
+              headerIcon={<ClockIcon size={13} />}
               label="Cache strategy"
               title={cache?.title ?? "Unknown"}
               body={cache?.body ?? "No cache signals detected in this segment."}
-              badge="⏱"
+              badgeIcon={<ClockIcon size={14} />}
               tone="sky"
             />
             <InsightCard
-              headerIcon="◉"
+              headerIcon={<DatabaseIcon size={13} />}
               label="Data cache"
               title={dataCacheMiss ? "Miss" : dataCacheHit ? "Hit" : "—"}
               body={
@@ -114,7 +132,15 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
                     ? "Static output can be served from cache."
                     : "Cache behavior depends on runtime signals."
               }
-              badge={dataCacheMiss ? "✕" : dataCacheHit ? "✓" : "○"}
+              badgeIcon={
+                dataCacheMiss ? (
+                  <XCircleIcon size={14} />
+                ) : dataCacheHit ? (
+                  <CheckCircleIcon size={14} />
+                ) : (
+                  "○"
+                )
+              }
               tone={dataCacheMiss ? "rose" : dataCacheHit ? "emerald" : "zinc"}
             />
           </>
@@ -124,9 +150,9 @@ export function RouteInsights({ project, selectedPath, githubUrl }: RouteInsight
       </div>
 
       {route ? (
-        <div className="shrink-0 border-t border-white/10 p-3">
+        <div className="theme-border shrink-0 border-t p-3">
           <Link
-            href={routeDetailHref(route.id, githubUrl)}
+            href={routeDetailHref(route.id, linkQuery)}
             className="block rounded-md bg-violet-600 px-3 py-2 text-center text-xs font-medium text-white hover:bg-violet-500"
           >
             Open route detail →
@@ -143,30 +169,34 @@ function InsightCard({
   title,
   body,
   badge,
+  badgeIcon,
   tone,
   mono,
 }: {
-  headerIcon: string;
+  headerIcon: ReactNode;
   label: string;
   title: string;
   body: string;
-  badge: string;
+  badge?: string;
+  badgeIcon?: ReactNode;
   tone: "emerald" | "sky" | "rose" | "violet" | "zinc";
   mono?: boolean;
 }) {
   return (
-    <article className="overflow-hidden rounded-lg border border-white/10 bg-[#121214]">
-      <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
-        <span className="text-xs text-zinc-500">{headerIcon}</span>
-        <p className="text-[11px] font-medium text-zinc-500">{label}</p>
+    <article className="theme-card theme-border overflow-hidden rounded-lg border">
+      <div className="theme-border-subtle flex items-center gap-2 border-b px-3 py-2">
+        <span className="theme-muted flex h-4 w-4 shrink-0 items-center justify-center">
+          {headerIcon}
+        </span>
+        <p className="theme-muted text-[11px] font-medium leading-none">{label}</p>
       </div>
       <div className="flex gap-3 px-3 py-2.5">
-        <StatusCircle tone={tone}>{badge}</StatusCircle>
+        <StatusCircle tone={tone}>{badgeIcon ?? badge}</StatusCircle>
         <div className="min-w-0 flex-1">
-          <p className={`text-xs font-semibold leading-snug text-zinc-100 ${mono ? "truncate font-mono" : ""}`}>
+          <p className={`theme-text text-xs font-semibold leading-snug ${mono ? "truncate font-mono" : ""}`}>
             {title}
           </p>
-          <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">{body}</p>
+          <p className="theme-muted mt-1 text-[11px] leading-relaxed">{body}</p>
         </div>
       </div>
     </article>
@@ -175,21 +205,22 @@ function InsightCard({
 
 function LearnMoreCard() {
   return (
-    <article className="overflow-hidden rounded-lg border border-white/10 bg-[#121214]">
-      <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
-        <span className="text-xs text-zinc-500">📖</span>
-        <p className="text-[11px] font-medium text-zinc-500">Learn more</p>
+    <article className="theme-card theme-border overflow-hidden rounded-lg border">
+      <div className="theme-border-subtle flex items-center gap-2 border-b px-3 py-2">
+        <BookIcon size={13} className="theme-muted" />
+        <p className="theme-muted text-[11px] font-medium">Learn more</p>
       </div>
       <div className="px-3 py-2.5">
         <a
           href="https://nextjs.org/docs/app"
           target="_blank"
           rel="noreferrer"
-          className="text-xs font-medium text-violet-400 hover:text-violet-300"
+          className="inline-flex items-center gap-1 text-xs font-medium text-violet-500 hover:text-violet-600"
         >
-          View Next.js docs ↗
+          View Next.js docs
+          <ExternalLinkIcon size={12} />
         </a>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+        <p className="theme-muted mt-1.5 text-[11px] leading-relaxed">
           Explore the official Next.js documentation to learn more about App Router.
         </p>
       </div>
@@ -205,16 +236,16 @@ function StatusCircle({
   children: React.ReactNode;
 }) {
   const styles = {
-    emerald: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
-    sky: "border-sky-500/40 bg-sky-500/10 text-sky-400",
-    rose: "border-rose-500/40 bg-rose-500/10 text-rose-400",
-    violet: "border-violet-500/40 bg-violet-500/10 text-violet-400",
-    zinc: "border-zinc-600/50 bg-zinc-800/80 text-zinc-400",
+    emerald: "status-badge status-badge-emerald",
+    sky: "status-badge status-badge-sky",
+    rose: "status-badge status-badge-rose",
+    violet: "status-badge status-badge-violet",
+    zinc: "status-badge status-badge-zinc",
   }[tone];
 
   return (
     <span
-      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[9px] font-bold ${styles}`}
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[9px] ${styles}`}
     >
       {children}
     </span>
@@ -223,8 +254,8 @@ function StatusCircle({
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-lg border border-dashed border-white/10 px-3 py-2.5 text-zinc-500">
-      <p className="text-xs font-medium text-zinc-400">{title}</p>
+    <div className="theme-border rounded-lg border border-dashed px-3 py-2.5 theme-muted">
+      <p className="theme-text-secondary text-xs font-medium">{title}</p>
       <p className="mt-1 text-[11px]">{body}</p>
     </div>
   );

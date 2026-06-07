@@ -6,6 +6,9 @@ import type { RouteProject, RouteSegment } from "@/lib/analyzer";
 import type { CacheLayer } from "@/lib/route-detail/cache-layers";
 import type { SuggestedFetch } from "@/lib/route-detail/suggested-fetch";
 import type { RouteFaqItem } from "@/lib/route-detail/route-faq";
+import { copyShareUrl, createShareLink, routeShareHref } from "@/lib/share/build-share-url";
+import { routeLinkQueryFromSearch } from "@/lib/route-detail/urls";
+import { RouteStudioMark, ShareIcon } from "@/components/icons";
 import { StudioNav } from "@/components/layout/studio-nav";
 import { breadcrumbItems, routeDetailHref } from "@/lib/route-detail/urls";
 import { DEMO_ROUTES } from "@/lib/demo-routes";
@@ -22,6 +25,7 @@ type RouteDetailShellProps = {
   suggestion: SuggestedFetch | null;
   faq: RouteFaqItem[];
   githubUrl?: string | null;
+  shareId?: string | null;
 };
 
 export function RouteDetailShell({
@@ -32,36 +36,42 @@ export function RouteDetailShell({
   suggestion,
   faq,
   githubUrl = null,
+  shareId = null,
 }: RouteDetailShellProps) {
   const [copied, setCopied] = useState(false);
-  const crumbs = breadcrumbItems(project, route, githubUrl);
+  const linkQuery = routeLinkQueryFromSearch({ github: githubUrl, share: shareId });
+  const crumbs = breadcrumbItems(project, route, linkQuery);
   const pageFile = route.files.find((f) => f.kind === "page")?.path;
 
   async function shareLink() {
-    await navigator.clipboard.writeText(window.location.href);
+    const result = await createShareLink({ project, routeId: route.id });
+    if (!result.ok) return;
+    const href = routeShareHref(route.id, result.shareId, linkQuery);
+    await copyShareUrl(href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div className="app-shell flex flex-col overflow-hidden bg-zinc-950 text-zinc-100">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+    <div className="app-shell theme-shell flex flex-col overflow-hidden">
+      <header className="theme-border flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/studio" className="hidden text-xs text-zinc-500 hover:text-zinc-300 sm:inline">
-            Route Studio
+          <Link href="/studio" className="theme-muted hidden items-center gap-1.5 text-xs hover:theme-text sm:inline-flex">
+            <RouteStudioMark size={14} className="text-violet-600" />
+            <span>Route Studio</span>
           </Link>
-          <span className="hidden text-zinc-700 sm:inline">/</span>
+          <span className="theme-muted-subtle hidden sm:inline">/</span>
           <nav className="flex min-w-0 items-center gap-1 text-sm">
             {crumbs.map((crumb, i) => (
               <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-1">
-                {i > 0 ? <span className="text-zinc-600">/</span> : null}
+                {i > 0 ? <span className="theme-muted-subtle">/</span> : null}
                 {crumb.href ? (
                   <Link
                     href={crumb.href}
                     className={
                       i === crumbs.length - 1
-                        ? "truncate font-medium text-zinc-100 hover:text-violet-200"
-                        : "truncate text-zinc-500 hover:text-zinc-300"
+                        ? "theme-text truncate font-medium hover:text-violet-700"
+                        : "theme-muted truncate hover:theme-text-secondary"
                     }
                   >
                     {crumb.label}
@@ -70,8 +80,8 @@ export function RouteDetailShell({
                   <span
                     className={
                       i === crumbs.length - 1
-                        ? "truncate font-medium text-zinc-100"
-                        : "truncate text-zinc-500"
+                        ? "theme-text truncate font-medium"
+                        : "theme-muted truncate"
                     }
                   >
                     {crumb.label}
@@ -80,22 +90,20 @@ export function RouteDetailShell({
               </span>
             ))}
           </nav>
-          <span className="hidden truncate font-mono text-xs text-zinc-600 lg:inline">
-            {route.urlPath}
-          </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={shareLink}
-            className="rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-300 hover:bg-white/5"
+            onClick={() => void shareLink()}
+            className="theme-border theme-hover theme-text-secondary inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm"
           >
+            <ShareIcon size={15} />
             {copied ? "Link copied" : "Share"}
           </button>
           {pageFile ? (
             <span
-              className="hidden rounded-lg border border-white/10 px-3 py-2 text-sm text-zinc-400 sm:inline"
+              className="theme-border theme-muted hidden rounded-lg border px-3 py-2 text-sm sm:inline"
               title={pageFile}
             >
               Edit route
@@ -105,9 +113,9 @@ export function RouteDetailShell({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <StudioNav />
+        <StudioNav nextVersion={project.nextVersion} />
 
-        <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950">
+        <aside className="theme-panel flex w-[280px] shrink-0 flex-col overflow-hidden border-r theme-border">
           <RouteMetadataPanel route={route} layers={layers} />
         </aside>
 
@@ -116,11 +124,11 @@ export function RouteDetailShell({
 
           <div className="grid gap-5 xl:grid-cols-2">
             <SuggestedFetchPanel suggestion={suggestion} />
-            <RouteFaqPanel items={faq} />
+            <RouteFaqPanel route={route} layers={layers} items={faq} />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pb-2 text-[11px] text-zinc-600">
-            <Link href="/studio" className="text-violet-400 hover:text-violet-300">
+          <div className="theme-muted-subtle flex flex-wrap items-center gap-2 pb-2 text-[11px]">
+            <Link href="/studio" className="text-violet-600 hover:text-violet-700">
               ← Dashboard
             </Link>
             <span>·</span>
@@ -128,11 +136,11 @@ export function RouteDetailShell({
             {DEMO_ROUTES.map((r) => (
               <Link
                 key={r.id}
-                href={routeDetailHref(r.id, githubUrl)}
+                href={routeDetailHref(r.id, linkQuery)}
                 className={`rounded-md border px-2.5 py-1.5 text-xs ${
                   r.id === route.id
-                    ? "border-violet-500/40 bg-violet-500/10 text-violet-200"
-                    : "border-white/10 text-zinc-400 hover:text-zinc-200"
+                    ? "theme-selected border-violet-500/35 font-medium"
+                    : "theme-border theme-muted theme-hover"
                 }`}
               >
                 {r.urlPath}

@@ -1,11 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { RouteProject } from "@/lib/analyzer";
-import { saveProjectSource, type ProjectSource } from "@/lib/project-source";
+import {
+  routeLinkQueryFromSource,
+  type ProjectSource,
+} from "@/lib/project-source";
+import {
+  loadStudioSession,
+  restoreStudioProject,
+  saveStudioSession,
+} from "@/lib/studio-session";
+import { copyShareUrl, createShareLink, studioShareHref } from "@/lib/share/build-share-url";
+import {
+  ChevronDownIcon,
+  GitHubIcon,
+  RouteStudioLogo,
+  ShareIcon,
+  UploadIcon,
+} from "@/components/icons";
 import { StudioNav } from "@/components/layout/studio-nav";
 import { FileTree } from "./file-tree";
+import { FolderUploadDialog } from "./folder-upload-dialog";
 import { GitHubImportDialog } from "./github-import-dialog";
 import { RouteGraph } from "./route-graph";
 import { RouteInsights } from "./route-insights";
@@ -17,54 +35,205 @@ type DashboardShellProps = {
 type MobilePanel = "tree" | "graph" | "insights";
 
 export function DashboardShell({ initialProject }: DashboardShellProps) {
+  const searchParams = useSearchParams();
   const [project, setProject] = useState(initialProject);
   const [source, setSource] = useState<ProjectSource>({ type: "demo" });
   const [importOpen, setImportOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [loadingShare, setLoadingShare] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("graph");
   const [selectedPath, setSelectedPath] = useState<string | null>(
     initialProject.routes.find((r) => r.urlPath === "/dashboard/settings")?.files.find((f) => f.kind === "page")
       ?.path ?? initialProject.routes[0]?.files[0]?.path ?? null,
   );
 
+  useEffect(() => {
+    const shareId = searchParams.get("share");
+    if (shareId) {
+      let cancelled = false;
+      setLoadingShare(true);
+
+      fetch(`/api/share?id=${encodeURIComponent(shareId)}`)
+        .then((res) => res.json())
+        .then(
+          (data: {
+            ok: boolean;
+            project?: RouteProject;
+            selectedPath?: string;
+            error?: string;
+          }) => {
+            if (cancelled || !data.ok || !data.project) return;
+            const nextPath =
+              data.selectedPath ?? data.project.routes[0]?.files[0]?.path ?? null;
+            setProject(data.project);
+            setSource({ type: "share", shareId });
+            saveStudioSession({
+              source: { type: "share", shareId },
+              selectedPath: nextPath,
+              project: data.project,
+            });
+            setSelectedPath(nextPath);
+            setMobilePanel("graph");
+          },
+        )
+        .finally(() => {
+          if (!cancelled) {
+            setLoadingShare(false);
+            setSessionReady(true);
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const session = loadStudioSession();
+    setSource(session.source);
+
+    if (session.selectedPath) {
+      setSelectedPath(session.selectedPath);
+    }
+
+    if (session.source.type === "demo") {
+      setSessionReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    setRestoringSession(true);
+
+    void restoreStudioProject(session)
+      .then((restored) => {
+        if (cancelled || !restored) return;
+        setProject(restored.project);
+        setSelectedPath(
+          restored.selectedPath ??
+            restored.project.routes[0]?.files[0]?.path ??
+            null,
+        );
+        saveStudioSession({
+          source: session.source,
+          selectedPath:
+            restored.selectedPath ??
+            session.selectedPath ??
+            restored.project.routes[0]?.files[0]?.path ??
+            null,
+          project: restored.project,
+        });
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setRestoringSession(false);
+          setSessionReady(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    saveStudioSession({
+      source,
+      selectedPath,
+      project: source.type === "demo" ? undefined : project,
+    });
+  }, [sessionReady, source, selectedPath, project]);
+
   async function handleGitHubImportSuccess(data: { project: RouteProject; repoUrl: string }) {
     const nextSource: ProjectSource = { type: "github", url: data.repoUrl };
+    const nextPath = data.project.routes[0]?.files[0]?.path ?? null;
     setProject(data.project);
     setSource(nextSource);
-    saveProjectSource(nextSource);
-    setSelectedPath(data.project.routes[0]?.files[0]?.path ?? null);
+    saveStudioSession({
+      source: nextSource,
+      selectedPath: nextPath,
+      project: data.project,
+    });
+    setSelectedPath(nextPath);
+    setMobilePanel("graph");
+  }
+
+  function handleUploadSuccess(data: { project: RouteProject; projectName: string }) {
+    const nextSource: ProjectSource = { type: "upload", name: data.projectName };
+    const nextPath = data.project.routes[0]?.files[0]?.path ?? null;
+    setProject(data.project);
+    setSource(nextSource);
+    saveStudioSession({
+      source: nextSource,
+      selectedPath: nextPath,
+      project: data.project,
+    });
+    setSelectedPath(nextPath);
     setMobilePanel("graph");
   }
 
   function resetDemo() {
+    const nextPath =
+      initialProject.routes.find((r) => r.urlPath === "/dashboard/settings")?.files.find((f) => f.kind === "page")
+        ?.path ?? null;
     setProject(initialProject);
     setSource({ type: "demo" });
-    saveProjectSource({ type: "demo" });
-    setSelectedPath(
-      initialProject.routes.find((r) => r.urlPath === "/dashboard/settings")?.files.find((f) => f.kind === "page")
-        ?.path ?? null,
-    );
+    saveStudioSession({ source: { type: "demo" }, selectedPath: nextPath });
+    setSelectedPath(nextPath);
   }
 
+  async function shareDashboard() {
+    const result = await createShareLink({ project, selectedPath });
+    if (!result.ok) return;
+    await copyShareUrl(studioShareHref(result.shareId));
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }
+
+  const linkQuery = routeLinkQueryFromSource(source);
   const githubUrl = source.type === "github" ? source.url : null;
 
   return (
-    <div className="app-shell flex flex-col bg-zinc-950 text-zinc-100">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+    <div className="app-shell theme-shell flex flex-col">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b theme-border px-4 py-3">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <div>
-            <p className="text-sm font-semibold leading-tight">Route Studio</p>
-            <p className="text-xs text-zinc-500">App Router visualizer</p>
-          </div>
-          <ProjectPicker name={project.name} onResetDemo={resetDemo} githubActive={source.type === "github"} />
+          <Link href="/" className="hover:opacity-90">
+            <RouteStudioLogo showWordmark />
+          </Link>
+          <ProjectPicker
+            name={project.name}
+            onResetDemo={resetDemo}
+            source={source}
+          />
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => setImportOpen(true)}
-            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/5"
+            onClick={() => setUploadOpen(true)}
+            className="theme-border theme-hover theme-text-secondary inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs"
           >
+            <UploadIcon size={14} />
+            Upload folder
+          </button>
+          <button
+            type="button"
+            onClick={() => setImportOpen(true)}
+            className="theme-border theme-hover theme-text-secondary inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs"
+          >
+            <GitHubIcon size={14} />
             Import from GitHub
+          </button>
+          <button
+            type="button"
+            onClick={() => void shareDashboard()}
+            disabled={loadingShare}
+            className="theme-border theme-hover theme-text-secondary inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs disabled:opacity-50"
+          >
+            <ShareIcon size={14} />
+            {shareCopied ? "Link copied" : "Share"}
           </button>
           <a
             href="https://vercel.com/new"
@@ -77,6 +246,12 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
         </div>
       </header>
 
+      {loadingShare || restoringSession ? (
+        <div className="shrink-0 border-b border-violet-500/20 bg-violet-500/5 px-4 py-1.5 text-xs text-violet-200">
+          {loadingShare ? "Loading shared analysis…" : "Restoring your last project…"}
+        </div>
+      ) : null}
+
       {source.type === "github" ? (
         <div className="shrink-0 truncate border-b border-violet-500/20 bg-violet-500/5 px-4 py-1.5 text-xs text-violet-200">
           Scanning{" "}
@@ -86,8 +261,20 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
         </div>
       ) : null}
 
+      {source.type === "upload" ? (
+        <div className="shrink-0 truncate border-b border-emerald-500/20 bg-emerald-500/5 px-4 py-1.5 text-xs text-emerald-200">
+          Local upload — {source.name}
+        </div>
+      ) : null}
+
+      {source.type === "share" ? (
+        <div className="shrink-0 truncate border-b border-sky-500/20 bg-sky-500/5 px-4 py-1.5 text-xs text-sky-200">
+          Shared analysis · link expires in ~1 hour
+        </div>
+      ) : null}
+
       {/* Mobile panel tabs */}
-      <div className="flex shrink-0 border-b border-white/10 lg:hidden">
+      <div className="flex shrink-0 border-b theme-border lg:hidden">
         {(
           [
             ["tree", "Files"],
@@ -111,38 +298,36 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
       </div>
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <StudioNav />
+        <StudioNav nextVersion={project.nextVersion} />
 
         {/* File tree */}
         <aside
-          className={`flex min-h-0 flex-col overflow-hidden border-r border-white/10 bg-zinc-950 ${
+          className={`flex min-h-0 flex-col overflow-hidden border-r theme-border theme-panel ${
             mobilePanel === "tree" ? "flex w-full flex-1" : "hidden"
           } lg:flex lg:w-64 lg:shrink-0 lg:flex-none`}
         >
-          <div className="shrink-0 border-b border-white/10 px-3 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              File explorer
-            </p>
+          <div className="shrink-0 border-b theme-border px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+              <p className="truncate text-xs font-medium">{project.name}</p>
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
             <FileTree nodes={project.tree} selectedPath={selectedPath} onSelect={setSelectedPath} />
-          </div>
-          <div className="shrink-0 border-t border-white/10 px-3 py-1.5 text-xs text-zinc-500">
-            Next.js {project.nextVersion ?? "unknown"}
           </div>
         </aside>
 
         {/* Graph — center column */}
         <section
-          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#0c0c0f] ${
+          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden theme-canvas ${
             mobilePanel === "graph" ? "flex" : "hidden lg:flex"
           }`}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+          <div className="flex shrink-0 items-center justify-between border-b theme-border px-3 py-2">
+            <p className="theme-muted text-[10px] font-semibold uppercase tracking-wider">
               Route graph
             </p>
-            <p className="text-[10px] text-zinc-600">Pan · zoom · click a node</p>
+            <p className="theme-muted-subtle text-[10px]">Pan · zoom · export · click a node</p>
           </div>
           <div className="relative min-h-0 flex-1">
             <RouteGraph
@@ -155,11 +340,11 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
 
         {/* Insights */}
         <aside
-          className={`flex min-h-0 flex-col overflow-hidden border-l border-white/10 bg-zinc-950 ${
+          className={`flex min-h-0 flex-col overflow-hidden border-l theme-border theme-panel ${
             mobilePanel === "insights" ? "flex w-full flex-1" : "hidden"
           } lg:flex lg:w-[300px] lg:shrink-0 lg:flex-none`}
         >
-          <RouteInsights project={project} selectedPath={selectedPath} githubUrl={githubUrl} />
+          <RouteInsights project={project} selectedPath={selectedPath} linkQuery={linkQuery} />
         </aside>
       </div>
 
@@ -168,6 +353,11 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
         onClose={() => setImportOpen(false)}
         onSuccess={handleGitHubImportSuccess}
       />
+      <FolderUploadDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onSuccess={handleUploadSuccess}
+      />
     </div>
   );
 }
@@ -175,11 +365,11 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
 function ProjectPicker({
   name,
   onResetDemo,
-  githubActive,
+  source,
 }: {
   name: string;
   onResetDemo: () => void;
-  githubActive: boolean;
+  source: ProjectSource;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -197,9 +387,10 @@ function ProjectPicker({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-zinc-300"
+        className="theme-border theme-subtle theme-text-secondary inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm"
       >
-        {name} ▾
+        {name}
+        <ChevronDownIcon size={14} className="theme-muted-subtle" />
       </button>
       {open ? (
         <>
@@ -209,20 +400,30 @@ function ProjectPicker({
             className="fixed inset-0 z-10"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 z-20 mt-1 min-w-[220px] rounded-lg border border-white/10 bg-zinc-900 py-1 shadow-xl">
+          <div className="theme-card theme-border absolute left-0 z-20 mt-1 min-w-[220px] rounded-lg border py-1 shadow-xl">
             <button
               type="button"
               onClick={() => {
                 onResetDemo();
                 setOpen(false);
               }}
-              className="block w-full px-3 py-2 text-left text-sm text-zinc-300 hover:bg-white/5"
+              className="theme-text-tertiary theme-hover block w-full px-3 py-2 text-left text-sm"
             >
               examples/my-app (demo)
             </button>
-            {githubActive ? (
-              <p className="border-t border-white/10 px-3 py-2 text-sm text-violet-300">
+            {source.type === "github" ? (
+              <p className="border-t theme-border px-3 py-2 text-sm text-violet-300">
                 GitHub import active
+              </p>
+            ) : null}
+            {source.type === "upload" ? (
+              <p className="border-t theme-border px-3 py-2 text-sm text-emerald-300">
+                Local upload active
+              </p>
+            ) : null}
+            {source.type === "share" ? (
+              <p className="border-t theme-border px-3 py-2 text-sm text-sky-300">
+                Shared link active
               </p>
             ) : null}
           </div>

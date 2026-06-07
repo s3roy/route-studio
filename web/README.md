@@ -23,10 +23,13 @@ npm run lint     # ESLint
 |------|------|-------------|
 | `/` | `app/page.tsx` | Landing page with feature grid + demo links |
 | `/studio` | `app/studio/page.tsx` | Dashboard — scans bundled demo on server |
-| `/studio/route/[[...segments]]` | `app/studio/route/[[...segments]]/page.tsx` | Route detail (supports `?github=` for imports) |
+| `/studio/route/[[...segments]]` | `app/studio/route/[[...segments]]/page.tsx` | Route detail (`?github=`, `?share=`) |
 | `/scan` | `app/scan/page.tsx` | Analyzer debug table + raw JSON |
 | `/api/scan` | `app/api/scan/route.ts` | JSON API for demo project |
 | `/api/import/github` | `app/api/import/github/route.ts` | POST GitHub URL → scanned project |
+| `/api/import/upload` | `app/api/import/upload/route.ts` | POST folder files → scanned project |
+| `/api/share` | `app/api/share/route.ts` | Create / resolve share links |
+| `/api/route/chat` | `app/api/route/chat/route.ts` | Route detail chat |
 
 ---
 
@@ -46,18 +49,19 @@ npm run lint     # ESLint
 components/
 ├── layout/studio-nav.tsx       Icon rail (home, studio, route detail, scan)
 ├── dashboard/
-│   ├── dashboard-shell.tsx     3-column layout + GitHub import
+│   ├── dashboard-shell.tsx     3-column layout + import + share
 │   ├── file-tree.tsx           Collapsible app/ tree
-│   ├── route-graph.tsx         React Flow canvas
+│   ├── route-graph.tsx         React Flow canvas + PNG/SVG export
 │   ├── route-node.tsx          Graph node card
 │   ├── route-insights.tsx      Right panel insight cards
-│   └── github-import-dialog.tsx
+│   ├── github-import-dialog.tsx
+│   └── folder-upload-dialog.tsx
 └── route-detail/
     ├── route-detail-shell.tsx  Breadcrumb + layout
     ├── route-metadata-panel.tsx
     ├── request-flow-diagram.tsx
     ├── suggested-fetch-panel.tsx
-    └── route-faq-panel.tsx
+    └── route-faq-panel.tsx     Route chat UI
 ```
 
 ---
@@ -105,7 +109,7 @@ Set `GITHUB_TOKEN` in `.env.local` for higher rate limits.
 - `.app-shell` — full viewport height (`100dvh`), no page scroll
 - `.graph-canvas` — React Flow fills center panel
 - Scrollbars hidden globally (`scrollbar-width: none`) but scroll still works
-- Dark theme: zinc/violet palette matching Vercel-style mockups
+- Dark / light theme via `ThemeProvider` — toggle in header or nav
 
 ---
 

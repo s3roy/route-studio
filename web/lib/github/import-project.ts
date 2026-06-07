@@ -5,9 +5,10 @@ import { scanProject, type RouteProject } from "@/lib/analyzer";
 import {
   buildImportSuggestions,
   buildMonorepoError,
-  discoverAppRoots,
-  rankAppRoots,
+  buildTruncatedRepoError,
+  mergeDiscoveredRoots,
 } from "./discover-apps";
+import { discoverAppRootsRemote } from "./discover-remote";
 import { formatGitHubUrl, parseGitHubUrl, type ParsedGitHubUrl } from "./parse-url";
 
 const MAX_FILES = 400;
@@ -16,6 +17,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type CacheEntry = { project: RouteProject; expires: number };
 type TreeBlob = { path: string; size: number };
+type RepoTree = { blobs: TreeBlob[]; truncated: boolean };
 
 const projectCache = new Map<string, CacheEntry>();
 
@@ -70,7 +72,7 @@ function shouldIncludeFile(filePath: string, subpath?: string): boolean {
   return false;
 }
 
-async function fetchRepoTree(parsed: ParsedGitHubUrl, ref: string): Promise<TreeBlob[]> {
+async function fetchRepoTree(parsed: ParsedGitHubUrl, ref: string): Promise<RepoTree> {
   const res = await fetch(
     `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
     { headers: ghHeaders() },
@@ -86,13 +88,133 @@ async function fetchRepoTree(parsed: ParsedGitHubUrl, ref: string): Promise<Tree
     tree: { path: string; type: string; size?: number }[];
   };
 
+  return {
+    truncated: Boolean(data.truncated),
+    blobs: data.tree
+      .filter((entry) => entry.type === "blob")
+      .map((entry) => ({ path: entry.path, size: entry.size ?? 0 })),
+  };
+}
+
+/** Fetch a complete file list for one monorepo subfolder (works when the root tree is truncated). */
+async function fetchSubpathTree(
+  parsed: ParsedGitHubUrl,
+  ref: string,
+  subpath: string,
+): Promise<TreeBlob[]> {
+  const headers = ghHeaders();
+  const normalized = subpath.replace(/\/$/, "");
+  const treeSha = await resolveDirectoryTreeSha(parsed, ref, normalized, headers);
+
+  const treeRes = await fetch(
+    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${treeSha}?recursive=1`,
+    { headers },
+  );
+
+  if (!treeRes.ok) {
+    throw new Error(`Failed to read files under "${normalized}" (${treeRes.status}).`);
+  }
+
+  const data = (await treeRes.json()) as {
+    truncated?: boolean;
+    tree: { path: string; type: string; size?: number }[];
+  };
+
   if (data.truncated) {
-    throw new Error("Repository is too large to scan at once. Paste a subfolder URL (…/tree/main/apps/web).");
+    throw new Error(
+      `Subfolder "${normalized}" is too large to scan. Try a smaller example app within the monorepo.`,
+    );
   }
 
   return data.tree
-    .filter((entry) => entry.type === "blob")
-    .map((entry) => ({ path: entry.path, size: entry.size ?? 0 }));
+    .filter((item) => item.type === "blob")
+    .map((item) => ({
+      path: `${normalized}/${item.path}`,
+      size: item.size ?? 0,
+    }));
+}
+
+async function resolveDirectoryTreeSha(
+  parsed: ParsedGitHubUrl,
+  ref: string,
+  subpath: string,
+  headers: Record<string, string>,
+): Promise<string> {
+  const commitRes = await fetch(
+    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/commits/${encodeURIComponent(ref)}`,
+    { headers },
+  );
+
+  if (!commitRes.ok) {
+    throw new Error(`Branch "${ref}" not found.`);
+  }
+
+  const commit = (await commitRes.json()) as { commit: { tree: { sha: string } } };
+  let treeSha = commit.commit.tree.sha;
+  const parts = subpath.split("/").filter(Boolean);
+
+  for (const part of parts) {
+    const treeRes = await fetch(
+      `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${treeSha}`,
+      { headers },
+    );
+
+    if (!treeRes.ok) {
+      throw new Error(`Subfolder "${subpath}" not found on branch "${ref}".`);
+    }
+
+    const tree = (await treeRes.json()) as {
+      tree: { path: string; type: string; sha: string }[];
+    };
+
+    const entry = tree.tree.find((item) => item.path === part && item.type === "tree");
+    if (!entry) {
+      throw new Error(`Subfolder "${subpath}" not found on branch "${ref}".`);
+    }
+
+    treeSha = entry.sha;
+  }
+
+  return treeSha;
+}
+
+async function treeForImport(
+  parsed: ParsedGitHubUrl,
+  ref: string,
+  rootTree: RepoTree,
+): Promise<TreeBlob[]> {
+  if (!parsed.subpath) {
+    if (rootTree.truncated) {
+      throw new Error("truncated-root");
+    }
+    return rootTree.blobs;
+  }
+
+  const prefix = `${parsed.subpath.replace(/\/$/, "")}/`;
+  if (!rootTree.truncated) {
+    const scoped = rootTree.blobs.filter((entry) => entry.path.startsWith(prefix));
+    if (scoped.length > 0) return scoped;
+  }
+
+  return fetchSubpathTree(parsed, ref, parsed.subpath);
+}
+
+async function resolveRemoteRoots(
+  parsed: ParsedGitHubUrl,
+  ref: string,
+  rootTree: RepoTree,
+): Promise<string[]> {
+  const blobPaths = rootTree.blobs.map((t) => t.path);
+
+  if (rootTree.truncated) {
+    return discoverAppRootsRemote(parsed, ref, ghHeaders(), blobPaths);
+  }
+
+  const localCount = mergeDiscoveredRoots(blobPaths, []).length;
+  if (localCount >= 2) return [];
+  if (localCount === 1 && !parsed.subpath) return [];
+
+  return discoverAppRootsRemote(parsed, ref, ghHeaders(), blobPaths);
 }
 
 function selectFiles(tree: TreeBlob[], parsed: ParsedGitHubUrl): TreeBlob[] {
@@ -106,28 +228,34 @@ function hasAppFiles(tree: TreeBlob[], parsed: ParsedGitHubUrl): boolean {
   return tree.some((entry) => {
     const rel = parsed.subpath ? stripSubpath(entry.path, parsed.subpath) : entry.path;
     if (rel == null || rel.includes("..")) return false;
-    return rel.startsWith("app/") || rel.startsWith("src/app/");
+    return rel.startsWith("app/") || rel.startsWith("src/app/") || rel === "app" || rel === "src/app";
   });
 }
 
 function resolveSubpath(
   parsed: ParsedGitHubUrl,
   ref: string,
-  tree: TreeBlob[],
+  rootTree: RepoTree,
+  remoteRoots: string[],
 ): ParsedGitHubUrl {
   if (parsed.subpath) return parsed;
 
-  if (hasAppFiles(tree, parsed)) {
+  if (hasAppFiles(rootTree.blobs, parsed)) {
     return parsed;
   }
 
-  const blobPaths = tree.map((t) => t.path);
-  const roots = rankAppRoots(discoverAppRoots(blobPaths), blobPaths);
+  const blobPaths = rootTree.blobs.map((t) => t.path);
+  const roots = mergeDiscoveredRoots(blobPaths, remoteRoots);
+
   if (roots.length === 1) {
     return { ...parsed, subpath: roots[0] };
   }
 
-  throw new Error(buildMonorepoError(parsed, ref, blobPaths));
+  if (rootTree.truncated) {
+    throw new Error(buildTruncatedRepoError(parsed, ref, blobPaths, remoteRoots));
+  }
+
+  throw new Error(buildMonorepoError(parsed, ref, blobPaths, remoteRoots));
 }
 
 async function downloadFile(
@@ -148,14 +276,33 @@ async function downloadFile(
   fs.writeFileSync(dest, await res.text());
 }
 
-async function materializeRepo(active: ParsedGitHubUrl, ref: string, tree: TreeBlob[]): Promise<string> {
-  const files = selectFiles(tree, active);
+async function materializeRepo(
+  parsed: ParsedGitHubUrl,
+  ref: string,
+  rootTree: RepoTree,
+  remoteRoots: string[],
+): Promise<string> {
+  let tree: TreeBlob[];
+
+  try {
+    tree = await treeForImport(parsed, ref, rootTree);
+  } catch (error) {
+    if (error instanceof Error && error.message === "truncated-root") {
+      throw new Error(
+        buildTruncatedRepoError(parsed, ref, rootTree.blobs.map((t) => t.path), remoteRoots),
+      );
+    }
+    throw error;
+  }
+
+  const files = selectFiles(tree, parsed);
 
   if (files.length === 0) {
+    const blobPaths = tree.map((t) => t.path);
     throw new Error(
-      active.subpath
-        ? `No app/ folder found under "${active.subpath}". Point to the Next.js app root.`
-        : buildMonorepoError(active, ref, tree.map((t) => t.path)),
+      parsed.subpath
+        ? `No app/ folder found under "${parsed.subpath}". Point to the Next.js app root.`
+        : buildMonorepoError(parsed, ref, blobPaths, remoteRoots),
     );
   }
 
@@ -163,7 +310,7 @@ async function materializeRepo(active: ParsedGitHubUrl, ref: string, tree: TreeB
 
   try {
     for (const file of files) {
-      await downloadFile(active, ref, file.path, tempRoot);
+      await downloadFile(parsed, ref, file.path, tempRoot);
     }
     return tempRoot;
   } catch (error) {
@@ -185,13 +332,15 @@ export async function importGitHubProject(
 
   try {
     const ref = await resolveRef(parsed);
-    const tree = await fetchRepoTree(parsed, ref);
-    const blobPaths = tree.map((t) => t.path);
-    const suggestions = () => buildImportSuggestions(parsed, ref, blobPaths);
+    const rootTree = await fetchRepoTree(parsed, ref);
+    const blobPaths = rootTree.blobs.map((t) => t.path);
+
+    const remoteRoots = await resolveRemoteRoots(parsed, ref, rootTree);
+    const suggestions = () => buildImportSuggestions(parsed, ref, blobPaths, remoteRoots);
 
     let active: ParsedGitHubUrl;
     try {
-      active = resolveSubpath(parsed, ref, tree);
+      active = resolveSubpath(parsed, ref, rootTree, remoteRoots);
     } catch (error) {
       return {
         ok: false,
@@ -211,7 +360,7 @@ export async function importGitHubProject(
       };
     }
 
-    const tempRoot = await materializeRepo(active, ref, tree);
+    const tempRoot = await materializeRepo(active, ref, rootTree, remoteRoots);
 
     try {
       const result = scanProject(tempRoot);

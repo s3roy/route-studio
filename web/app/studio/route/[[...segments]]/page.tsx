@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { scanProject } from "@/lib/analyzer";
 import { getExampleProjectPath } from "@/lib/example-project";
 import { importGitHubProject } from "@/lib/github/import-project";
+import { getShareEntry } from "@/lib/share/share-store";
 import { getCacheLayers } from "@/lib/route-detail/cache-layers";
 import { getRouteFaq } from "@/lib/route-detail/route-faq";
 import {
@@ -14,16 +15,20 @@ import { RouteDetailShell } from "@/components/route-detail/route-detail-shell";
 
 type PageProps = {
   params: Promise<{ segments?: string[] }>;
-  searchParams: Promise<{ github?: string }>;
+  searchParams: Promise<{ github?: string; share?: string }>;
 };
 
 export default async function RouteDetailPage({ params, searchParams }: PageProps) {
   const { segments } = await params;
-  const { github } = await searchParams;
+  const { github, share } = await searchParams;
   const routeId = routeIdFromSegments(segments);
 
   let project;
-  if (github) {
+  if (share) {
+    const entry = getShareEntry(share);
+    if (!entry) notFound();
+    project = entry.project;
+  } else if (github) {
     const imported = await importGitHubProject(github);
     if (!imported.ok) notFound();
     project = imported.project;
@@ -50,6 +55,7 @@ export default async function RouteDetailPage({ params, searchParams }: PageProp
       suggestion={suggestion}
       faq={faq}
       githubUrl={github ?? null}
+      shareId={share ?? null}
     />
   );
 }

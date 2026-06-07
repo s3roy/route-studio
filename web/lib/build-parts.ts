@@ -39,4 +39,34 @@ export const BUILD_PARTS: BuildPart[] = [
     summary: "examples/my-app demo, suggested fetch snippets, deploy to Vercel.",
     status: "done",
   },
+  {
+    id: 6,
+    title: "Upload local folder",
+    summary: "Drag & drop or pick a project folder — scans app/ without executing code.",
+    status: "done",
+  },
+  {
+    id: 7,
+    title: "Ask about this route",
+    summary: "Real chat UI with route context; OpenAI when OPENAI_API_KEY is set.",
+    status: "done",
+  },
+  {
+    id: 8,
+    title: "Export graph",
+    summary: "Download the route graph as PNG or SVG from the dashboard.",
+    status: "done",
+  },
+  {
+    id: 9,
+    title: "Share link",
+    summary: "Copy a shareable URL for dashboard or route detail analysis (~1 hour TTL).",
+    status: "done",
+  },
+  {
+    id: 10,
+    title: "Theme toggle",
+    summary: "Switch between dark and light mode from the header or nav bar.",
+    status: "done",
+  },
 ];

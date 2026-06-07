@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toPng, toSvg } from "html-to-image";
 import {
   Background,
   Controls,
@@ -15,6 +16,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { RouteProject } from "@/lib/analyzer";
 import { buildRouteGraph, type RouteNodeData } from "@/lib/graph/build-graph";
+import { useTheme } from "@/components/theme/theme-provider";
 import { RouteFlowNode } from "./route-node";
 
 const nodeTypes = { routeNode: RouteFlowNode };
@@ -25,6 +27,13 @@ const FIT_VIEW_OPTIONS = {
   duration: 250,
 } as const;
 
+const FOCUS_NODE_OPTIONS = {
+  padding: 0.55,
+  maxZoom: 1.05,
+  minZoom: 0.45,
+  duration: 350,
+} as const;
+
 type RouteGraphProps = {
   project: RouteProject;
   selectedPath: string | null;
@@ -32,6 +41,7 @@ type RouteGraphProps = {
 };
 
 export function RouteGraph({ project, selectedPath, onSelect }: RouteGraphProps) {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const graph = useMemo(() => buildRouteGraph(project), [project]);
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
@@ -63,9 +73,9 @@ export function RouteGraph({ project, selectedPath, onSelect }: RouteGraphProps)
     return (
       <div className="flex h-full min-h-[200px] items-center justify-center p-6 text-center">
         <div>
-          <p className="text-sm font-medium text-zinc-300">No route graph</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Could not find <code className="text-zinc-400">app/layout.tsx</code> in this project.
+          <p className="theme-text-secondary text-sm font-medium">No route graph</p>
+          <p className="theme-muted mt-1 text-xs">
+            Could not find <code className="theme-text-tertiary">app/layout.tsx</code> in this project.
           </p>
         </div>
       </div>
@@ -86,8 +96,9 @@ export function RouteGraph({ project, selectedPath, onSelect }: RouteGraphProps)
         fitViewOptions={FIT_VIEW_OPTIONS}
         proOptions={{ hideAttribution: true }}
       >
-        <GraphViewportSync project={project} />
-        <Background color="#27272a" gap={24} size={1} />
+        <GraphViewportSync project={project} selectedPath={selectedPath} />
+        <GraphSelectionFocus selectedPath={selectedPath} />
+        <Background color={theme === "light" ? "#b8b8c3" : "#27272a"} gap={24} size={1} />
         <Controls
           showInteractive={false}
           showFitView
@@ -98,11 +109,12 @@ export function RouteGraph({ project, selectedPath, onSelect }: RouteGraphProps)
         <Panel position="top-right" className="graph-panel-controls !m-3">
           <div className="flex flex-col gap-2">
             <FitViewButton />
+            <ExportGraphButtons containerRef={containerRef} projectName={project.name} />
             <FullscreenButton containerRef={containerRef} />
           </div>
         </Panel>
         <Panel position="bottom-left" className="!m-3">
-          <div className="flex flex-wrap gap-2 rounded-lg border border-white/10 bg-zinc-900/95 px-2.5 py-1.5 text-xs text-zinc-400 shadow-lg">
+          <div className="theme-card theme-border flex flex-wrap gap-2 rounded-lg border px-2.5 py-1.5 text-xs theme-muted shadow-lg">
             <LegendItem color="#a855f7" label="Layout" />
             <LegendItem color="#14b8a6" label="Page / API" />
             <LegendItem color="#a855f7" dashed label="Route group" />
@@ -123,19 +135,52 @@ function useFitGraphView() {
   }, [fitView, nodesInitialized]);
 }
 
-function GraphViewportSync({ project }: { project: RouteProject }) {
-  const fitGraph = useFitGraphView();
+function GraphViewportSync({
+  project,
+  selectedPath,
+}: {
+  project: RouteProject;
+  selectedPath: string | null;
+}) {
+  const { fitView, getNode } = useReactFlow();
   const nodesInitialized = useNodesInitialized();
+
+  const fitGraph = useCallback(() => {
+    if (!nodesInitialized) return;
+    void fitView(FIT_VIEW_OPTIONS);
+  }, [fitView, nodesInitialized]);
 
   useEffect(() => {
     if (!nodesInitialized) return;
+    if (selectedPath && getNode(selectedPath)) return;
 
     const id = window.setTimeout(() => {
       fitGraph();
     }, 50);
 
     return () => window.clearTimeout(id);
-  }, [project, nodesInitialized, fitGraph]);
+  }, [project, nodesInitialized, fitGraph, selectedPath, getNode]);
+
+  return null;
+}
+
+function GraphSelectionFocus({ selectedPath }: { selectedPath: string | null }) {
+  const { fitView, getNode } = useReactFlow();
+  const nodesInitialized = useNodesInitialized();
+
+  useEffect(() => {
+    if (!nodesInitialized || !selectedPath) return;
+    if (!getNode(selectedPath)) return;
+
+    const id = window.setTimeout(() => {
+      void fitView({
+        ...FOCUS_NODE_OPTIONS,
+        nodes: [{ id: selectedPath }],
+      });
+    }, 40);
+
+    return () => window.clearTimeout(id);
+  }, [selectedPath, nodesInitialized, fitView, getNode]);
 
   return null;
 }
@@ -147,10 +192,74 @@ function FitViewButton() {
     <button
       type="button"
       onClick={fitGraph}
-      className="rounded-lg border border-white/10 bg-zinc-900/95 px-2.5 py-1 text-xs text-zinc-300 shadow-lg hover:bg-zinc-800"
+      className="rounded-lg border theme-border px-2.5 py-1 text-xs shadow-lg theme-hover"
     >
       Fit to view
     </button>
+  );
+}
+
+function ExportGraphButtons({
+  containerRef,
+  projectName,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  projectName: string;
+}) {
+  const [exporting, setExporting] = useState<"png" | "svg" | null>(null);
+
+  function getViewport(): HTMLElement | null {
+    return containerRef.current?.querySelector(".react-flow__viewport") as HTMLElement | null;
+  }
+
+  function download(dataUrl: string, filename: string) {
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = filename;
+    link.click();
+  }
+
+  async function exportImage(format: "png" | "svg") {
+    const viewport = getViewport();
+    if (!viewport || exporting) return;
+
+    setExporting(format);
+    const bg =
+      getComputedStyle(document.documentElement).getPropertyValue("--rs-canvas").trim() ||
+      (document.documentElement.getAttribute("data-theme") === "light" ? "#f4f4f5" : "#0c0c0f");
+    const slug = projectName.replace(/\W+/g, "-").toLowerCase() || "route-graph";
+
+    try {
+      const options = { backgroundColor: bg, pixelRatio: 2 };
+      const dataUrl =
+        format === "png" ? await toPng(viewport, options) : await toSvg(viewport, options);
+      download(dataUrl, `${slug}-routes.${format}`);
+    } catch {
+      /* export blocked or canvas tainted */
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void exportImage("png")}
+        disabled={!!exporting}
+        className="rounded-lg border border-white/10 bg-zinc-900/95 px-2.5 py-1 text-xs text-zinc-300 shadow-lg hover:bg-zinc-800 disabled:opacity-50"
+      >
+        {exporting === "png" ? "Exporting…" : "Export PNG"}
+      </button>
+      <button
+        type="button"
+        onClick={() => void exportImage("svg")}
+        disabled={!!exporting}
+        className="rounded-lg border border-white/10 bg-zinc-900/95 px-2.5 py-1 text-xs text-zinc-300 shadow-lg hover:bg-zinc-800 disabled:opacity-50"
+      >
+        {exporting === "svg" ? "Exporting…" : "Export SVG"}
+      </button>
+    </>
   );
 }
 
@@ -197,7 +306,7 @@ function FullscreenButton({
     <button
       type="button"
       onClick={toggleFullscreen}
-      className="rounded-lg border border-white/10 bg-zinc-900/95 px-2.5 py-1 text-xs text-zinc-300 shadow-lg hover:bg-zinc-800"
+      className="rounded-lg border theme-border px-2.5 py-1 text-xs shadow-lg theme-hover"
       title={isFullscreen ? "Exit fullscreen" : "Fullscreen graph"}
     >
       {isFullscreen ? "Exit fullscreen" : "Fullscreen"}

@@ -24,7 +24,6 @@ Built with **Next.js 16**, **React Flow**, and **TypeScript** — aligned with t
 - [API routes](#api-routes)
 - [Deploy to Vercel](#deploy-to-vercel)
 - [Open source & contributing](#open-source--contributing)
-- [Similar tools](#similar-tools)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -75,16 +74,19 @@ Route Studio answers:
 - Reads source for `"use client"`, `export const dynamic`, `revalidate`, `fetch` cache options, `cookies()` / `headers()`
 - Detects `proxy.ts` / `middleware.ts` at project root
 
-### Dashboard (mockup 01)
+### Dashboard
 
 | Panel | Purpose |
 |-------|---------|
 | **File tree** | Browse real `app/` structure; click to select |
-| **Route graph** | Interactive React Flow canvas — zoom, pan, fit-to-view, fullscreen |
+| **Route graph** | Interactive React Flow canvas — zoom, pan, fit-to-view, fullscreen, PNG/SVG export |
 | **Route insights** | Quick cards: Rendering, Cache strategy, Data cache, docs link |
+| **Upload folder** | Drag & drop or pick a local project folder |
 | **GitHub import** | Paste a public repo URL; monorepo subfolder suggestions on error |
+| **Share** | Copy a link to this analysis (~1 hour TTL) |
+| **Theme** | Light / dark toggle |
 
-### Route detail (mockup 02)
+### Route detail
 
 Deep dive on one URL (example: `/dashboard/settings`):
 
@@ -94,7 +96,7 @@ Deep dive on one URL (example: `/dashboard/settings`):
 | **Caching layers** | All four Next.js cache layers with ✓ / ✕ status |
 | **Request flow** | Browser → Proxy → Layout → Page → Client boundary |
 | **Suggested fetch()** | Copy-paste snippet to enable caching |
-| **Ask about this route** | Static FAQ from scan data (AI chat planned for v2) |
+| **Ask about this route** | Chat about caching and performance — OpenAI when configured, local analysis otherwise |
 
 ---
 
@@ -194,7 +196,7 @@ The demo lives at `web/examples/my-app/` (also mirrored at `examples/my-app/` fo
 | Health API | `/api/health` | Route handler (`route.ts`) |
 | Proxy | — | `proxy.ts` (Next.js 16; formerly middleware) |
 
-The dashboard pre-selects **`/dashboard/settings`** because it best showcases the route detail mockup (dynamic rendering + cache miss).
+The dashboard pre-selects **`/dashboard/settings`** because it best showcases dynamic rendering and a Data Cache miss.
 
 ---
 
@@ -224,6 +226,16 @@ https://github.com/vercel/next.js/tree/canary/examples/hello-world
 
 ---
 
+## Local folder upload
+
+From the dashboard, click **Upload folder** and drag a project directory or use the folder picker.
+
+- Scans `app/` or `src/app/` — same limits as GitHub import (~400 files, 512 KB each)
+- Files are written to a temp directory server-side, then analyzed statically
+- Nothing is executed
+
+---
+
 ## Environment variables
 
 Create `web/.env.local` (optional):
@@ -231,6 +243,7 @@ Create `web/.env.local` (optional):
 | Variable | Purpose |
 |----------|---------|
 | `GITHUB_TOKEN` | GitHub PAT — higher rate limits + private repo access |
+| `OPENAI_API_KEY` | Enables OpenAI-powered route chat (optional) |
 
 ---
 
@@ -261,7 +274,6 @@ route-studio/
 │   ├── examples/my-app/      ← Bundled demo (Vercel-safe path)
 │   └── vercel.json
 ├── examples/my-app/          ← Same demo (local dev fallback)
-└── internal/                 ← Gitignored: mockups, CONCEPTS, PLAN (local only)
 ```
 
 See also [`web/README.md`](./web/README.md) for developer-focused notes.
@@ -313,7 +325,7 @@ type RouteProject = {
 };
 
 type RouteSegment = {
-  id: string;                  // "dashboard/settings" (internal)
+  id: string;                  // "dashboard/settings" (segment id)
   urlPath: string;             // "/dashboard/settings" (public URL)
   segmentPath: string;
   segments: ParsedSegment[];
@@ -399,34 +411,16 @@ chmod +x scripts/setup-branch-protection.sh
 
 ---
 
-## Similar tools
-
-| Tool | Focus |
-|------|--------|
-| [nextmap](https://github.com/icydotdev/nextmap) | Local route graph CLI |
-| [troql](https://github.com/yashkr321/troql) | GitHub → App Router graph |
-| [Next-Inspector](https://github.com/agentdmitro/Next-Inspector) | VS Code RSC/cache badges |
-| [RSC X-Ray](https://github.com/rsc-xray/rsc-xray) | Deep RSC analysis |
-
-Route Studio combines **graph + cache education + suggested fixes** in a single product UI.
-
----
-
 ## Roadmap
 
 | Status | Item |
 |--------|------|
 | ✅ Done | Analyzer, dashboard, route detail, bundled demo, GitHub import |
-| 📋 Planned | Upload local folder (drag & drop) |
-| 📋 Planned | AI “Ask about this route” (real chat, not FAQ) |
-| 📋 Planned | Export graph as SVG / PNG |
-| 📋 Planned | Share link to route analysis |
-| 📋 Planned | Theme toggle |
-
-Design mockups (local, in `internal/mockups/`):
-
-- **01-dashboard.png** — file tree + graph + insights
-- **02-route-detail.png** — cache autopsy + request flow
+| ✅ Done | Upload local folder (drag & drop) |
+| ✅ Done | AI “Ask about this route” (real chat, not FAQ) |
+| ✅ Done | Export graph as SVG / PNG |
+| ✅ Done | Share link to route analysis |
+| ✅ Done | Theme toggle |
 
 ---
 

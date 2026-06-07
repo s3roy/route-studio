@@ -1,11 +1,89 @@
 @import "tailwindcss";
 
-:root {
+/* ── Theme tokens ─────────────────────────────────────────────── */
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
   --background: #09090b;
   --foreground: #fafafa;
+  --foreground-secondary: #e4e4e7;
+  --foreground-tertiary: #d4d4d8;
   --muted: #a1a1aa;
+  --muted-subtle: #71717a;
   --border: rgba(255, 255, 255, 0.1);
-  --accent: #3b82f6;
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --accent: #8b5cf6;
+  --rs-shell: #09090b;
+  --rs-panel: #09090b;
+  --rs-canvas: #0c0c0f;
+  --rs-card: #121214;
+  --rs-elevated: #18181b;
+  --rs-overlay: rgba(0, 0, 0, 0.7);
+  --rs-input: rgba(0, 0, 0, 0.3);
+  --rs-hover: rgba(255, 255, 255, 0.05);
+  --rs-subtle: rgba(255, 255, 255, 0.03);
+  --rs-select-bg: rgba(139, 92, 246, 0.18);
+  --rs-select-text: #ddd6fe;
+  --rs-select-ring: rgba(139, 92, 246, 0.35);
+  --rs-nav-active-bg: rgba(139, 92, 246, 0.18);
+  --rs-nav-active-text: #ddd6fe;
+  --rs-graph-bg: #27272a;
+  --rs-graph-controls: rgba(24, 24, 27, 0.95);
+  --rs-graph-btn: rgb(39, 39, 42);
+  --rs-graph-btn-hover: rgb(63, 63, 70);
+  --rs-graph-node: rgba(24, 24, 27, 0.95);
+  --rs-shadow-sm: none;
+  --rs-shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --badge-emerald: #34d399;
+  --badge-sky: #38bdf8;
+  --badge-rose: #fb7185;
+  --badge-violet: #a78bfa;
+  --badge-zinc: #a1a1aa;
+  --chat-user-bg: rgba(139, 92, 246, 0.18);
+  --chat-user-fg: #ddd6fe;
+  --chat-user-border: rgba(139, 92, 246, 0.35);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --background: #e8e8ec;
+  --foreground: #09090b;
+  --foreground-secondary: #18181b;
+  --foreground-tertiary: #27272a;
+  --muted: #3f3f46;
+  --muted-subtle: #52525b;
+  --border: rgba(0, 0, 0, 0.14);
+  --border-subtle: rgba(0, 0, 0, 0.09);
+  --accent: #6d28d9;
+  --rs-shell: #e8e8ec;
+  --rs-panel: #ffffff;
+  --rs-canvas: #dddee3;
+  --rs-card: #ffffff;
+  --rs-elevated: #f4f4f5;
+  --rs-overlay: rgba(15, 23, 42, 0.45);
+  --rs-input: #eef0f3;
+  --rs-hover: rgba(0, 0, 0, 0.06);
+  --rs-subtle: #f4f4f5;
+  --rs-select-bg: rgba(109, 40, 217, 0.14);
+  --rs-select-text: #4c1d95;
+  --rs-select-ring: rgba(109, 40, 217, 0.35);
+  --rs-nav-active-bg: rgba(109, 40, 217, 0.14);
+  --rs-nav-active-text: #5b21b6;
+  --rs-graph-bg: #b8b8c3;
+  --rs-graph-controls: #ffffff;
+  --rs-graph-btn: #f4f4f5;
+  --rs-graph-btn-hover: #e4e4e7;
+  --rs-graph-node: #ffffff;
+  --rs-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --rs-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --badge-emerald: #047857;
+  --badge-sky: #0369a1;
+  --badge-rose: #be123c;
+  --badge-violet: #6d28d9;
+  --badge-zinc: #52525b;
+  --chat-user-bg: rgba(109, 40, 217, 0.12);
+  --chat-user-fg: #4c1d95;
+  --chat-user-border: rgba(109, 40, 217, 0.28);
 }
 
 @theme inline {
@@ -16,6 +94,162 @@
   --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+.theme-shell {
+  background-color: var(--rs-shell);
+  color: var(--foreground);
+}
+
+.theme-panel {
+  background-color: var(--rs-panel);
+}
+
+.theme-canvas {
+  background-color: var(--rs-canvas);
+}
+
+.theme-card {
+  background-color: var(--rs-card);
+  box-shadow: var(--rs-shadow-sm);
+}
+
+.theme-elevated {
+  background-color: var(--rs-elevated);
+}
+
+.theme-border {
+  border-color: var(--border);
+}
+
+.theme-border-subtle {
+  border-color: var(--border-subtle);
+}
+
+.theme-text {
+  color: var(--foreground);
+}
+
+.theme-text-secondary {
+  color: var(--foreground-secondary);
+}
+
+.theme-text-tertiary {
+  color: var(--foreground-tertiary);
+}
+
+.theme-muted {
+  color: var(--muted);
+}
+
+.theme-muted-subtle {
+  color: var(--muted-subtle);
+}
+
+.theme-hover:hover {
+  background-color: var(--rs-hover);
+}
+
+.theme-subtle {
+  background-color: var(--rs-subtle);
+}
+
+.theme-input {
+  background-color: var(--rs-input);
+}
+
+.theme-overlay {
+  background-color: var(--rs-overlay);
+}
+
+.theme-selected {
+  background-color: var(--rs-select-bg);
+  color: var(--rs-select-text);
+}
+
+.theme-nav-active {
+  background-color: var(--rs-nav-active-bg);
+  color: var(--rs-nav-active-text);
+  box-shadow: inset 0 0 0 1px var(--rs-select-ring);
+}
+
+.theme-toggle {
+  border-color: var(--border);
+  color: var(--foreground-secondary);
+}
+
+.theme-toggle:hover {
+  background-color: var(--rs-hover);
+}
+
+.hover\:theme-text-tertiary:hover {
+  color: var(--foreground-tertiary);
+}
+
+.theme-graph-node {
+  background-color: var(--rs-graph-node);
+  box-shadow: var(--rs-shadow-sm);
+}
+
+.theme-code {
+  background-color: var(--rs-input);
+  color: var(--foreground-secondary);
+  border: 1px solid var(--border);
+}
+
+.status-badge {
+  border-width: 1px;
+  border-style: solid;
+  font-weight: 700;
+}
+
+.status-badge-emerald {
+  border-color: color-mix(in srgb, var(--badge-emerald) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-emerald) 14%, transparent);
+  color: var(--badge-emerald);
+}
+
+.status-badge-sky {
+  border-color: color-mix(in srgb, var(--badge-sky) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-sky) 14%, transparent);
+  color: var(--badge-sky);
+}
+
+.status-badge-rose {
+  border-color: color-mix(in srgb, var(--badge-rose) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-rose) 14%, transparent);
+  color: var(--badge-rose);
+}
+
+.status-badge-violet {
+  border-color: color-mix(in srgb, var(--badge-violet) 45%, transparent);
+  background: color-mix(in srgb, var(--badge-violet) 14%, transparent);
+  color: var(--badge-violet);
+}
+
+.status-badge-zinc {
+  border-color: var(--border);
+  background: var(--rs-subtle);
+  color: var(--badge-zinc);
+}
+
+.chat-user-bubble {
+  margin-left: 1.5rem;
+  border: 1px solid var(--chat-user-border);
+  background: var(--chat-user-bg);
+  color: var(--chat-user-fg);
+}
+
+html[data-theme="light"] .theme-panel {
+  box-shadow: inset -1px 0 0 var(--border);
+}
+
+html[data-theme="light"] .theme-card {
+  box-shadow: var(--rs-shadow-sm);
+}
+
+html[data-theme="light"] .theme-graph-node {
+  box-shadow: var(--rs-shadow-md);
 }
 
 html {
@@ -32,7 +266,6 @@ body {
   min-height: 100%;
 }
 
-/* Scrollable everywhere, visible scrollbars nowhere */
 html,
 body,
 * {
@@ -46,14 +279,12 @@ body,
   display: none;
 }
 
-/* Full-height app shells (studio, route detail) — use dvh, not 100vh */
 .app-shell {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
 }
 
-/* React Flow must fill its panel — never rely on 100vh here */
 .graph-canvas {
   width: 100%;
   height: 100%;
@@ -69,18 +300,18 @@ body,
   z-index: 10;
   margin: 0.75rem !important;
   border-radius: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(24, 24, 27, 0.95) !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border) !important;
+  background: var(--rs-graph-controls) !important;
+  box-shadow: var(--rs-shadow-md);
   pointer-events: auto;
 }
 
 .graph-controls button {
   width: 2rem !important;
   height: 2rem !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  background: rgb(39, 39, 42) !important;
-  color: rgb(212, 212, 216) !important;
+  border-color: var(--border) !important;
+  background: var(--rs-graph-btn) !important;
+  color: var(--foreground-secondary) !important;
   pointer-events: auto;
   cursor: pointer;
 }
@@ -93,10 +324,18 @@ body,
 .graph-panel-controls button {
   pointer-events: auto;
   cursor: pointer;
+  border: 1px solid var(--border) !important;
+  background: var(--rs-graph-controls) !important;
+  color: var(--foreground-secondary) !important;
+  box-shadow: var(--rs-shadow-sm);
+}
+
+.graph-panel-controls button:hover {
+  background: var(--rs-graph-btn-hover) !important;
 }
 
 .graph-canvas:fullscreen {
-  background: #0c0c0f;
+  background: var(--rs-canvas);
 }
 
 .graph-canvas:fullscreen .react-flow {
@@ -105,7 +344,7 @@ body,
 }
 
 .graph-controls button:hover {
-  background: rgb(63, 63, 70) !important;
+  background: var(--rs-graph-btn-hover) !important;
 }
 
 .react-flow__panel {
@@ -114,4 +353,190 @@ body,
 
 .react-flow__node {
   pointer-events: all;
+}
+
+html[data-theme="light"] .bg-zinc-950,
+html[data-theme="light"] .bg-zinc-900,
+html[data-theme="light"] .bg-zinc-900\/80,
+html[data-theme="light"] .bg-zinc-900\/95 {
+  background-color: var(--rs-card) !important;
+  box-shadow: var(--rs-shadow-sm);
+}
+
+html[data-theme="light"] .bg-\[\#0c0c0f\] {
+  background-color: var(--rs-canvas) !important;
+}
+
+html[data-theme="light"] .bg-\[\#121214\] {
+  background-color: var(--rs-card) !important;
+}
+
+html[data-theme="light"] .text-zinc-100 {
+  color: var(--foreground) !important;
+}
+
+html[data-theme="light"] .text-zinc-200 {
+  color: var(--foreground-secondary) !important;
+}
+
+html[data-theme="light"] .text-zinc-300 {
+  color: var(--foreground-tertiary) !important;
+}
+
+html[data-theme="light"] .text-zinc-400 {
+  color: var(--muted) !important;
+}
+
+html[data-theme="light"] .text-zinc-500 {
+  color: var(--muted) !important;
+}
+
+html[data-theme="light"] .text-zinc-600 {
+  color: var(--muted-subtle) !important;
+}
+
+html[data-theme="light"] .text-zinc-700 {
+  color: var(--muted-subtle) !important;
+}
+
+html[data-theme="light"] .text-violet-100,
+html[data-theme="light"] .text-violet-200 {
+  color: #5b21b6 !important;
+}
+
+html[data-theme="light"] .text-violet-300,
+html[data-theme="light"] .text-violet-400 {
+  color: #6d28d9 !important;
+}
+
+html[data-theme="light"] .text-emerald-300,
+html[data-theme="light"] .text-emerald-400 {
+  color: #047857 !important;
+}
+
+html[data-theme="light"] .text-sky-400 {
+  color: #0369a1 !important;
+}
+
+html[data-theme="light"] .text-rose-400 {
+  color: #be123c !important;
+}
+
+html[data-theme="light"] .text-amber-300 {
+  color: #b45309 !important;
+}
+
+html[data-theme="light"] .border-white\/10,
+html[data-theme="light"] .border-white\/8,
+html[data-theme="light"] .border-white\/5,
+html[data-theme="light"] .border-white\/15 {
+  border-color: var(--border) !important;
+}
+
+html[data-theme="light"] .bg-black\/20,
+html[data-theme="light"] .bg-black\/30,
+html[data-theme="light"] .bg-black\/40,
+html[data-theme="light"] .bg-black\/50,
+html[data-theme="light"] .bg-black\/70 {
+  background-color: var(--rs-input) !important;
+}
+
+html[data-theme="light"] .bg-white\/\[0\.02\],
+html[data-theme="light"] .bg-white\/\[0\.03\],
+html[data-theme="light"] .bg-white\/5 {
+  background-color: var(--rs-subtle) !important;
+}
+
+html[data-theme="light"] .hover\:bg-white\/5:hover,
+html[data-theme="light"] .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: var(--rs-hover) !important;
+}
+
+html[data-theme="light"] .bg-zinc-800\/80 {
+  background-color: #f4f4f5 !important;
+}
+
+html[data-theme="light"] .border-zinc-600 {
+  border-color: #d4d4d8 !important;
+}
+
+html[data-theme="light"] .bg-zinc-600 {
+  background-color: #d4d4d8 !important;
+}
+
+html[data-theme="light"] .ring-violet-400\/70 {
+  --tw-ring-color: rgba(124, 58, 237, 0.45) !important;
+}
+
+html[data-theme="light"] .bg-violet-500\/20,
+html[data-theme="light"] .bg-violet-600\/20,
+html[data-theme="light"] .bg-violet-600\/15 {
+  background-color: rgba(124, 58, 237, 0.1) !important;
+}
+
+html[data-theme="light"] .bg-violet-500\/10,
+html[data-theme="light"] .bg-violet-500\/5 {
+  background-color: rgba(124, 58, 237, 0.08) !important;
+}
+
+html[data-theme="light"] .bg-emerald-500\/10,
+html[data-theme="light"] .bg-emerald-500\/15 {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+}
+
+html[data-theme="light"] .bg-red-500\/15 {
+  background-color: rgba(244, 63, 94, 0.1) !important;
+}
+
+html[data-theme="light"] .bg-amber-500\/10 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+
+html[data-theme="light"] .bg-amber-500\/5 {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+}
+
+html[data-theme="light"] .bg-teal-500\/5 {
+  background-color: rgba(20, 184, 166, 0.08) !important;
+}
+
+html[data-theme="light"] .border-violet-500\/40,
+html[data-theme="light"] .border-violet-500\/50,
+html[data-theme="light"] .border-violet-400\/50 {
+  border-color: rgba(124, 58, 237, 0.28) !important;
+}
+
+html[data-theme="light"] .border-teal-500\/40,
+html[data-theme="light"] .border-teal-500\/50 {
+  border-color: rgba(20, 184, 166, 0.35) !important;
+}
+
+html[data-theme="light"] .border-amber-500\/40,
+html[data-theme="light"] .border-amber-500\/50 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+html[data-theme="light"] .border-emerald-500\/40 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+html[data-theme="light"] .border-rose-500\/40 {
+  border-color: rgba(244, 63, 94, 0.35) !important;
+}
+
+html[data-theme="light"] .border-sky-500\/40 {
+  border-color: rgba(14, 165, 233, 0.35) !important;
+}
+
+html[data-theme="light"] .hover\:theme-text-tertiary:hover {
+  color: var(--foreground) !important;
+}
+
+html[data-theme="light"] .text-red-400 {
+  color: #dc2626 !important;
+}
+
+html[data-theme="light"] pre.theme-code,
+html[data-theme="light"] .theme-code {
+  color: #18181b !important;
 }
