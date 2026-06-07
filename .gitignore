@@ -1,0 +1,25 @@
+# Personal planning & mockups — local only
+internal/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+
+# Dependencies & build (web app — see web/.gitignore too)
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel/
