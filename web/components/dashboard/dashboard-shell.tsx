@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import type { RouteProject } from "@/lib/analyzer";
 import {
   routeLinkQueryFromSource,
@@ -27,15 +27,15 @@ import { FolderUploadDialog } from "./folder-upload-dialog";
 import { GitHubImportDialog } from "./github-import-dialog";
 import { RouteGraph } from "./route-graph";
 import { RouteInsights } from "./route-insights";
+import { parseStudioPanel, type StudioPanel } from "@/lib/studio-nav";
 
 type DashboardShellProps = {
   initialProject: RouteProject;
 };
 
-type MobilePanel = "tree" | "graph" | "insights";
-
 export function DashboardShell({ initialProject }: DashboardShellProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [source, setSource] = useState<ProjectSource>({ type: "demo" });
   const [importOpen, setImportOpen] = useState(false);
@@ -44,10 +44,27 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
   const [loadingShare, setLoadingShare] = useState(false);
   const [restoringSession, setRestoringSession] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("graph");
+  const [mobilePanel, setMobilePanel] = useState<StudioPanel>(
+    () => parseStudioPanel(searchParams.get("panel")) ?? "graph",
+  );
   const [selectedPath, setSelectedPath] = useState<string | null>(
     initialProject.routes.find((r) => r.urlPath === "/dashboard/settings")?.files.find((f) => f.kind === "page")
       ?.path ?? initialProject.routes[0]?.files[0]?.path ?? null,
+  );
+
+  useEffect(() => {
+    const panel = parseStudioPanel(searchParams.get("panel"));
+    if (panel) setMobilePanel(panel);
+  }, [searchParams]);
+
+  const selectPanel = useCallback(
+    (panel: StudioPanel) => {
+      setMobilePanel(panel);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("panel", panel);
+      router.replace(`/studio?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
   );
 
   useEffect(() => {
@@ -285,7 +302,7 @@ export function DashboardShell({ initialProject }: DashboardShellProps) {
           <button
             key={id}
             type="button"
-            onClick={() => setMobilePanel(id)}
+            onClick={() => selectPanel(id)}
             className={`flex-1 py-2 text-xs font-medium ${
               mobilePanel === id
                 ? "border-b-2 border-violet-500 text-violet-200"
