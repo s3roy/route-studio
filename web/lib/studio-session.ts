@@ -1,6 +1,9 @@
 "use client";
 
 import type { RouteProject } from "@/lib/analyzer";
+import { DEMO_ROUTE_DETAIL } from "@/lib/demo-routes";
+import { defaultRouteForProject } from "@/lib/route-detail/resolve-route";
+import { routeDetailHref } from "@/lib/route-detail/urls";
 
 export type ProjectSource =
   | { type: "demo" }
@@ -158,4 +161,17 @@ export function routeLinkQueryFromSource(source: ProjectSource): {
   if (source.type === "github") return { github: source.url };
   if (source.type === "share") return { share: source.shareId };
   return {};
+}
+
+/** Client-only: route detail link for the current studio session (nav settings icon). */
+export function routeDetailHrefForSession(): string {
+  const session = loadStudioSession();
+  const query = routeLinkQueryFromSource(session.source);
+
+  if (session.project) {
+    const route = defaultRouteForProject(session.project, session.selectedPath);
+    if (route) return routeDetailHref(route.id, query);
+  }
+
+  return routeDetailHref(DEMO_ROUTE_DETAIL.id, query);
 }

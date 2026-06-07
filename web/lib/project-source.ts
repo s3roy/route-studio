@@ -28,4 +28,4 @@ export function useProjectSource(): ProjectSource {
   return source;
 }
 
-export { githubQueryParam, routeLinkQueryFromSource, shareQueryParam } from "./studio-session";
+export { githubQueryParam, routeDetailHrefForSession, routeLinkQueryFromSource, shareQueryParam } from "./studio-session";

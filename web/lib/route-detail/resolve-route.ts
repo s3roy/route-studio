@@ -18,7 +18,31 @@ function walk(nodes: FileTreeNode[], onNode: (node: FileTreeNode) => void): void
 }
 
 export function findRouteById(project: RouteProject, routeId: string): RouteSegment | undefined {
-  return project.routes.find((r) => r.id === routeId);
+  const direct = project.routes.find((r) => r.id === routeId);
+  if (direct) return direct;
+
+  const asUrlPath = routeId.startsWith("/") ? routeId : `/${routeId}`;
+  return project.routes.find((r) => r.urlPath === asUrlPath);
+}
+
+export function findRouteForPath(
+  project: RouteProject,
+  filePath: string | null | undefined,
+): RouteSegment | undefined {
+  if (!filePath) return undefined;
+  return project.routes.find((r) => r.files.some((f) => f.path === filePath));
+}
+
+/** Pick a sensible default route for nav links (selected file → first page route). */
+export function defaultRouteForProject(
+  project: RouteProject,
+  selectedPath?: string | null,
+): RouteSegment | undefined {
+  return (
+    findRouteForPath(project, selectedPath) ??
+    project.routes.find((r) => r.files.some((f) => f.kind === "page")) ??
+    project.routes[0]
+  );
 }
 
 export function getLayoutChain(project: RouteProject, route: RouteSegment): string[] {

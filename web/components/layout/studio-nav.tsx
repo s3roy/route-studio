@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { DEMO_ROUTE_DETAIL } from "@/lib/demo-routes";
-import { loadProjectSource, routeLinkQueryFromSource } from "@/lib/project-source";
-import { routeDetailHref } from "@/lib/route-detail/urls";
+import { routeDetailHrefForSession } from "@/lib/studio-session";
 import {
   DatabaseIcon,
   FilesIcon,
@@ -35,12 +33,10 @@ type StudioNavProps = {
 export function StudioNav({ nextVersion }: StudioNavProps = {}) {
   const pathname = usePathname();
   const active = activeNavId(pathname);
-  const [settingsHref, setSettingsHref] = useState(routeDetailHref(DEMO_ROUTE_DETAIL.id));
+  const [settingsHref, setSettingsHref] = useState("/studio/route/dashboard/settings");
 
   useEffect(() => {
-    setSettingsHref(
-      routeDetailHref(DEMO_ROUTE_DETAIL.id, routeLinkQueryFromSource(loadProjectSource())),
-    );
+    setSettingsHref(routeDetailHrefForSession());
   }, [pathname]);
 
   const items = baseItems.map((item) =>
