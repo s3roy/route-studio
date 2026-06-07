@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RouteProject, RouteSegment } from "@/lib/analyzer";
 import type { CacheLayer } from "@/lib/route-detail/cache-layers";
 import type { SuggestedFetch } from "@/lib/route-detail/suggested-fetch";
@@ -12,6 +12,8 @@ import { RouteStudioMark, ShareIcon } from "@/components/icons";
 import { StudioNav } from "@/components/layout/studio-nav";
 import { breadcrumbItems, routeDetailHref } from "@/lib/route-detail/urls";
 import { DEMO_ROUTES } from "@/lib/demo-routes";
+import { isDemoProject } from "@/lib/route-detail/project-source-label";
+import { saveStudioSession } from "@/lib/studio-session";
 import { RouteMetadataPanel } from "./route-metadata-panel";
 import { RequestFlowDiagram } from "./request-flow-diagram";
 import { SuggestedFetchPanel } from "./suggested-fetch-panel";
@@ -42,6 +44,29 @@ export function RouteDetailShell({
   const linkQuery = routeLinkQueryFromSearch({ github: githubUrl, share: shareId });
   const crumbs = breadcrumbItems(project, route, linkQuery);
   const pageFile = route.files.find((f) => f.kind === "page")?.path;
+  const demoProject = isDemoProject(project);
+  const footerRoutes = demoProject
+    ? DEMO_ROUTES.map((r) => ({ id: r.id, urlPath: r.urlPath }))
+    : project.routes.slice(0, 10).map((r) => ({ id: r.id, urlPath: r.urlPath }));
+
+  useEffect(() => {
+    const selectedPath = pageFile ?? route.files[0]?.path ?? null;
+    if (githubUrl) {
+      saveStudioSession({
+        source: { type: "github", url: githubUrl },
+        selectedPath,
+        project,
+      });
+      return;
+    }
+    if (shareId) {
+      saveStudioSession({
+        source: { type: "share", shareId },
+        selectedPath,
+        project,
+      });
+    }
+  }, [githubUrl, shareId, project, route, pageFile]);
 
   async function shareLink() {
     const result = await createShareLink({ project, routeId: route.id });
@@ -116,7 +141,7 @@ export function RouteDetailShell({
         <StudioNav nextVersion={project.nextVersion} />
 
         <aside className="theme-panel flex w-[280px] shrink-0 flex-col overflow-hidden border-r theme-border">
-          <RouteMetadataPanel route={route} layers={layers} />
+          <RouteMetadataPanel project={project} route={route} layers={layers} />
         </aside>
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
@@ -132,8 +157,8 @@ export function RouteDetailShell({
               ← Dashboard
             </Link>
             <span>·</span>
-            <span>Demo routes:</span>
-            {DEMO_ROUTES.map((r) => (
+            <span>{demoProject ? "Demo routes:" : "Project routes:"}</span>
+            {footerRoutes.map((r) => (
               <Link
                 key={r.id}
                 href={routeDetailHref(r.id, linkQuery)}

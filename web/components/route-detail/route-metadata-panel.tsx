@@ -1,5 +1,6 @@
 import type { CacheLayer } from "@/lib/route-detail/cache-layers";
-import type { RouteSegment } from "@/lib/analyzer";
+import type { RouteProject, RouteSegment } from "@/lib/analyzer";
+import { describeProjectSource } from "@/lib/route-detail/project-source-label";
 import {
   describeRoute,
   runtimeLabel,
@@ -7,12 +8,15 @@ import {
 } from "@/lib/route-detail/resolve-route";
 
 type RouteMetadataPanelProps = {
+  project: RouteProject;
   route: RouteSegment;
   layers: CacheLayer[];
 };
 
 /** Mockup 02 — left sidebar metadata + cache layers. */
-export function RouteMetadataPanel({ route, layers }: RouteMetadataPanelProps) {
+export function RouteMetadataPanel({ project, route, layers }: RouteMetadataPanelProps) {
+  const sourceLabel = describeProjectSource(project);
+
   return (
     <div className="flex h-full flex-col overflow-y-auto text-[13px] leading-snug">
       <div className="theme-border border-b px-4 py-4">
@@ -55,11 +59,24 @@ export function RouteMetadataPanel({ route, layers }: RouteMetadataPanelProps) {
       </div>
 
       <div className="theme-border theme-muted-subtle mt-auto border-t px-4 py-3 text-[11px]">
-        <p>Scanned from examples/my-app</p>
-        <p className="mt-1.5 flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          Development
+        <p className="truncate" title={sourceLabel}>
+          Scanned from {sourceLabel}
         </p>
+        {project.github ? (
+          <a
+            href={project.rootPath}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-1.5 block truncate text-violet-600 hover:text-violet-700"
+          >
+            View on GitHub →
+          </a>
+        ) : (
+          <p className="mt-1.5 flex items-center gap-1.5">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+            Development
+          </p>
+        )}
       </div>
     </div>
   );

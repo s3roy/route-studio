@@ -3,7 +3,7 @@
 import type { RouteProject } from "@/lib/analyzer";
 import { DEMO_ROUTE_DETAIL } from "@/lib/demo-routes";
 import { defaultRouteForProject } from "@/lib/route-detail/resolve-route";
-import { routeDetailHref } from "@/lib/route-detail/urls";
+import { routeDetailHref, routeIdFromSegments } from "@/lib/route-detail/urls";
 
 export type ProjectSource =
   | { type: "demo" }
@@ -164,9 +164,24 @@ export function routeLinkQueryFromSource(source: ProjectSource): {
 }
 
 /** Client-only: route detail link for the current studio session (nav settings icon). */
-export function routeDetailHrefForSession(): string {
+export function routeDetailHrefForSession(pathname?: string): string {
   const session = loadStudioSession();
-  const query = routeLinkQueryFromSource(session.source);
+  let query = routeLinkQueryFromSource(session.source);
+
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    const github = params.get("github");
+    const share = params.get("share");
+    if (github || share) {
+      query = { github: github ?? null, share: share ?? null };
+    }
+  }
+
+  if (pathname?.startsWith("/studio/route")) {
+    const rest = pathname.slice("/studio/route".length).replace(/^\//, "");
+    const routeId = rest ? routeIdFromSegments(rest.split("/")) : "/";
+    return routeDetailHref(routeId, query);
+  }
 
   if (session.project) {
     const route = defaultRouteForProject(session.project, session.selectedPath);

@@ -36,7 +36,7 @@ export function StudioNav({ nextVersion }: StudioNavProps = {}) {
   const [settingsHref, setSettingsHref] = useState("/studio/route/dashboard/settings");
 
   useEffect(() => {
-    setSettingsHref(routeDetailHrefForSession());
+    setSettingsHref(routeDetailHrefForSession(pathname));
   }, [pathname]);
 
   const items = baseItems.map((item) =>
